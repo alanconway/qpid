@@ -22,6 +22,9 @@
  *
  */
 
+// Work around broken header files in gcc 4.1.2 (RHEL5) - needs to be included before anything else
+#include "qpid/sys/IntegerTypes.h"
+
 #include <iosfwd>
 #include <string>
 
