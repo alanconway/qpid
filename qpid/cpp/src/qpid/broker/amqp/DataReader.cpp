@@ -148,6 +148,8 @@ void DataReader::readOne(pn_data_t* data)
       case PN_MAP:
         readMap(data, described ? &descriptor : 0);
         break;
+      default: // Prevent "case not handled" errors for PN_INVALID in more recent proton.
+        break;
     }
     if (described) pn_data_exit(data);
 }
