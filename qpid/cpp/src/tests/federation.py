@@ -111,7 +111,9 @@ class FederationTests(TestBase010):
             _b.client_conn.close(timeout=10)
             _b.connection.close()
 
-    def test_bridge_create_and_close(self):
+    def test_deprecated_bridge_create_and_close(self):
+        """Test the deprecated link.bridge method, other tests use broker.create("bridge")
+        """
         self.startQmf();
         qmf = self.qmf
 
@@ -121,7 +123,7 @@ class FederationTests(TestBase010):
 
         link = qmf.getObjects(_class="link")[0]
         result = link.bridge(False, "amq.direct", "amq.direct", "my-key", "",
-                             "", False, False, False, 0, 0)
+                             "", False, False, False, 0)
         self.assertEqual(result.status, 0, result)
 
         bridge = qmf.getObjects(_class="bridge")[0]
@@ -200,7 +202,7 @@ class FederationTests(TestBase010):
         self.assertEqual(result.status, 0, result)
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "amq.direct", "amq.fanout", "my-key", "", "", False, True, False, 0, 0)
+        result = link.bridge(False, "amq.direct", "amq.fanout", "my-key", "", "", False, True, False, 0)
         self.assertEqual(result.status, 0, result)
 
         bridge = qmf.getObjects(_class="bridge")[0]
@@ -258,7 +260,7 @@ class FederationTests(TestBase010):
         self.assertEqual(result.status, 0, result)
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "my-bridge-queue", "amq.fanout", "my-key", "", "", True, False, False, 1, 0)
+        result = link.bridge(False, "my-bridge-queue", "amq.fanout", "my-key", "", "", True, False, False, 1)
         self.assertEqual(result.status, 0, result)
 
         bridge = qmf.getObjects(_class="bridge")[0]
@@ -313,7 +315,7 @@ class FederationTests(TestBase010):
         self.assertEqual(result.status, 0, result)
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "my-bridge-queue", "amq.fanout", "my-key", "", "", True, False, False, 1, 0)
+        result = link.bridge(False, "my-bridge-queue", "amq.fanout", "my-key", "", "", True, False, False, 1)
         self.assertEqual(result.status, 0, result)
 
         bridge = qmf.getObjects(_class="bridge")[0]
@@ -364,8 +366,8 @@ class FederationTests(TestBase010):
         l_link = self.qmf.getObjects(_class="link", _broker=l_broker)[0]
         r_link = self.qmf.getObjects(_class="link", _broker=r_broker)[0]
 
-        l_res = l_link.bridge(False, "amq.direct", "amq.direct", "key", "", "", False, False, False, 0, 0)
-        r_res = r_link.bridge(False, "amq.direct", "amq.direct", "key", "", "", False, False, False, 0, 0)
+        l_res = l_link.bridge(False, "amq.direct", "amq.direct", "key", "", "", False, False, False, 0)
+        r_res = r_link.bridge(False, "amq.direct", "amq.direct", "key", "", "", False, False, False, 0)
 
         self.assertEqual(l_res.status, 0)
         self.assertEqual(r_res.status, 0)
@@ -419,7 +421,7 @@ class FederationTests(TestBase010):
 
         link = qmf.getObjects(_class="link")[0]
         result = link.bridge(False, "amq.direct", "amq.fanout", "my-key", "my-bridge-id",
-                             "exclude-me,also-exclude-me", False, False, False, 0, 0)
+                             "exclude-me,also-exclude-me", False, False, False, 0)
         self.assertEqual(result.status, 0)
         bridge = qmf.getObjects(_class="bridge")[0]
 
@@ -477,7 +479,7 @@ class FederationTests(TestBase010):
         self.assertEqual(result.status, 0)
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "fed.fanout", "fed.fanout", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.fanout", "fed.fanout", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
         bridge = qmf.getObjects(_class="bridge")[0]
         sleep(5)
@@ -522,7 +524,7 @@ class FederationTests(TestBase010):
         self.assertEqual(result.status, 0)
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "fed.direct", "fed.direct", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.direct", "fed.direct", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
         bridge = qmf.getObjects(_class="bridge")[0]
         sleep(5)
@@ -566,7 +568,7 @@ class FederationTests(TestBase010):
         self.assertEqual(result.status, 0)
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "fed.topic", "fed.topic", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.topic", "fed.topic", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
         bridge = qmf.getObjects(_class="bridge")[0]
         sleep(5)
@@ -618,9 +620,9 @@ class FederationTests(TestBase010):
         queue2 = session.incoming("f2")
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "fed.topic_reorigin", "fed.topic_reorigin", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.topic_reorigin", "fed.topic_reorigin", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
-        result = link.bridge(False, "fed.topic_reorigin_2", "fed.topic_reorigin_2", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.topic_reorigin_2", "fed.topic_reorigin_2", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
 
         bridge = qmf.getObjects(_class="bridge")[0]
@@ -690,9 +692,9 @@ class FederationTests(TestBase010):
         queue2 = session.incoming("f2")
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "fed.direct_reorigin", "fed.direct_reorigin", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.direct_reorigin", "fed.direct_reorigin", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
-        result = link.bridge(False, "fed.direct_reorigin_2", "fed.direct_reorigin_2", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.direct_reorigin_2", "fed.direct_reorigin_2", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
 
         bridge = qmf.getObjects(_class="bridge")[0]
@@ -753,7 +755,7 @@ class FederationTests(TestBase010):
         self.assertEqual(result.status, 0)
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "fed.headers", "fed.headers", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.headers", "fed.headers", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
         bridge = qmf.getObjects(_class="bridge")[0]
         sleep(5)
@@ -806,9 +808,9 @@ class FederationTests(TestBase010):
         queue2 = session.incoming("f2")
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "fed.headers_reorigin", "fed.headers_reorigin", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.headers_reorigin", "fed.headers_reorigin", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
-        result = link.bridge(False, "fed.headers_reorigin_2", "fed.headers_reorigin_2", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.headers_reorigin_2", "fed.headers_reorigin_2", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
 
         bridge = qmf.getObjects(_class="bridge")[0]
@@ -862,7 +864,7 @@ class FederationTests(TestBase010):
         self.assertEqual(result.status, 0)
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "fed.headers_unbind", "fed.headers_unbind", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.headers_unbind", "fed.headers_unbind", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
         bridge = qmf.getObjects(_class="bridge")[0]
         sleep(5)
@@ -907,7 +909,7 @@ class FederationTests(TestBase010):
         self.assertEqual(result.status, 0)
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "fed.xml", "fed.xml", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.xml", "fed.xml", "", "", "", False, False, True, 0)
         
         self.assertEqual(result.status, 0) 
         bridge = qmf.getObjects(_class="bridge")[0]
@@ -961,10 +963,10 @@ class FederationTests(TestBase010):
         queue2 = session.incoming("f2")
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "fed.xml_reorigin", "fed.xml_reorigin", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.xml_reorigin", "fed.xml_reorigin", "", "", "", False, False, True, 0)
 
         self.assertEqual(result.status, 0) 
-        result = link.bridge(False, "fed.xml_reorigin_2", "fed.xml_reorigin_2", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.xml_reorigin_2", "fed.xml_reorigin_2", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
 
         bridge = qmf.getObjects(_class="bridge")[0]
@@ -1019,7 +1021,7 @@ class FederationTests(TestBase010):
         self.assertEqual(result.status, 0)
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "fed.xml_unbind", "fed.xml_unbind", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.xml_unbind", "fed.xml_unbind", "", "", "", False, False, True, 0)
 
         self.assertEqual(result.status, 0) 
         bridge = qmf.getObjects(_class="bridge")[0]
@@ -1067,7 +1069,7 @@ class FederationTests(TestBase010):
         self.assertEqual(result.status, 0)
 
         link = qmf.getObjects(_class="link")[0]
-        result = link.bridge(False, "fed.topic", "fed.topic", "", "", "", False, False, True, 0, 0)
+        result = link.bridge(False, "fed.topic", "fed.topic", "", "", "", False, False, True, 0)
         self.assertEqual(result.status, 0)
         bridge = qmf.getObjects(_class="bridge")[0]
         sleep(5)
@@ -1178,8 +1180,7 @@ class FederationTests(TestBase010):
                                  False, # srcIsQueue
                                  False, # srcIsLocal
                                  True,  # dynamic
-                                 0,     # sync
-                                 0)     # credit
+                                 0)     # sync
             self.assertEqual(result.status, 0)
 
         # wait for the inter-broker links to become operational
@@ -1437,8 +1438,7 @@ class FederationTests(TestBase010):
                                  False, # srcIsQueue
                                  False, # srcIsLocal
                                  True,  # dynamic
-                                 0,     # sync
-                                 0)     # credit
+                                 0)     # sync
             self.assertEqual(result.status, 0)
 
         # wait for the inter-broker links to become operational
@@ -1694,8 +1694,7 @@ class FederationTests(TestBase010):
                                  False, # srcIsQueue
                                  False, # srcIsLocal
                                  True,  # dynamic
-                                 0,     # sync
-                                 0)     # credit
+                                 0)     # sync
             self.assertEqual(result.status, 0)
 
         # wait for the inter-broker links to become operational
@@ -2024,8 +2023,7 @@ class FederationTests(TestBase010):
                                  False, # srcIsQueue
                                  False, # srcIsLocal
                                  True,  # dynamic
-                                 0,     # sync
-                                 0)     # credit
+                                 0)     # sync
             self.assertEqual(result.status, 0)
 
         # wait for all the inter-broker links to become operational
@@ -2113,8 +2111,7 @@ class FederationTests(TestBase010):
                                  False, # srcIsQueue
                                  False, # srcIsLocal
                                  True,  # dynamic
-                                 0,     # sync
-                                 0)     # credit
+                                 0)     # sync
             self.assertEqual(result.status, 0)
 
         binding_counts = [2, 2]
@@ -2758,10 +2755,16 @@ class FederationTests(TestBase010):
                 sleep(1)
 
         # create the subscription
-        result = link.bridge(False, "my-bridge-queue", "amq.fanout", "my-key",
-                             "", "", True, False, False,
-                             3,   # explicit ack, with sync every 3 msgs
-                             7)   # msg credit
+        result = broker.create("bridge", "test-bridge",
+                               { "link":link.name,
+                                 "src":"my-bridge-queue",
+                                 "dest":"amq.fanout",
+                                 "key":"my-key",
+                                 "srcIsQueue":True,
+                                 "srcIsLocal":False,
+                                 "dynamic":False,
+                                 "sync":3,
+                                 "credit":7 }, True)
         self.assertEqual(result.status, 0, result)
         bridge = qmf.getObjects(_class="bridge")[0]
 

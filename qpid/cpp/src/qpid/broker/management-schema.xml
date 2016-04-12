@@ -496,7 +496,6 @@
       <arg name="srcIsLocal"  dir="I" type="bool"/>
       <arg name="dynamic"     dir="I" type="bool"/>
       <arg name="sync"        dir="I" type="uint16"/>
-      <arg name="credit"      dir="I" type="uint32" default="0xFFFFFFFF" desc="granted to peer, 0 = infinite"/>
     </method>
   </class>
 

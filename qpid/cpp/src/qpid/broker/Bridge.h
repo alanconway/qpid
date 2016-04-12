@@ -30,7 +30,6 @@
 #include "qpid/management/Manageable.h"
 #include "qpid/broker/Exchange.h"
 #include "qpid/broker/SessionHandler.h"
-#include "qmf/org/apache/qpid/broker/ArgsLinkBridge.h"
 #include "qmf/org/apache/qpid/broker/Bridge.h"
 
 #include <boost/function.hpp>
@@ -56,20 +55,34 @@ class Bridge : public PersistableConfig,
     typedef boost::function<void(Bridge*)> CancellationListener;
     typedef boost::function<void(Bridge&, SessionHandler&)> InitializeCallback;
 
-    Bridge(const std::string& name, Link* link, framing::ChannelId id, CancellationListener l,
-           const qmf::org::apache::qpid::broker::ArgsLinkBridge& args,
-           InitializeCallback init, const std::string& queueName="",
+    Bridge(const std::string& name,
+           Link* link,
+           framing::ChannelId id,
+           CancellationListener l,
+           bool durable,
+           const std::string& src,
+           const std::string& dest,
+           const std::string& key,
+           const std::string& tag,
+           const std::string& excludes,
+           bool srcIsQueue,
+           bool srcIsLocal,
+           bool dynamic,
+           uint16_t sync,
+           uint32_t credit,
+           InitializeCallback init,
+           const std::string& queueName="",
            const std::string& altExchange=""
     );
     ~Bridge();
 
     QPID_BROKER_EXTERN void close();
-    bool isDurable() { return args.i_durable; }
+    bool isDurable() { return durable; }
     framing::ChannelId getChannel() const { return channel; }
     Link *getLink() const { return link; }
-    const std::string getSrc() const { return args.i_src; }
-    const std::string getDest() const { return args.i_dest; }
-    const std::string getKey() const { return args.i_key; }
+    const std::string getSrc() const { return src; }
+    const std::string getDest() const { return dest; }
+    const std::string getKey() const { return key; }
 
     bool isDetached() const { return detached; }
 
@@ -99,7 +112,6 @@ class Bridge : public PersistableConfig,
 
     // Methods needed by initialization functions
     std::string getQueueName() const { return queueName; }
-    const qmf::org::apache::qpid::broker::ArgsLinkBridge& getArgs() { return args; }
 
     /** create a name for a bridge (if none supplied by user config) */
     static std::string createName(const std::string& linkName,
@@ -129,7 +141,17 @@ class Bridge : public PersistableConfig,
 
     Link* const link;
     const framing::ChannelId          channel;
-    qmf::org::apache::qpid::broker::ArgsLinkBridge args;
+    bool durable;
+    std::string src;
+    std::string dest;
+    std::string key;
+    std::string tag;
+    std::string excludes;
+    bool srcIsQueue;
+    bool srcIsLocal;
+    bool dynamic;
+    uint16_t sync;
+    uint32_t credit;
     qmf::org::apache::qpid::broker::Bridge::shared_ptr mgmtObject;
     CancellationListener        listener;
     std::string name;
@@ -145,7 +167,7 @@ class Bridge : public PersistableConfig,
     void create(amqp_0_10::Connection& c);
     void cancel(amqp_0_10::Connection& c);
     void closed();
-    friend class Link; // to call create, cancel, closed()
+  friend class Link; // to call create, cancel, closed()
     boost::shared_ptr<ErrorListener> errorListener;
 
     const bool useExistingQueue;

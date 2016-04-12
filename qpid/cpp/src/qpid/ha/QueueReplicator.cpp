@@ -248,7 +248,6 @@ void QueueReplicator::initializeBridge(Bridge& bridge, SessionHandler& sessionHa
     if (!queue) return;         // Already destroyed
     sessionHandler = &sessionHandler_;
     AMQP_ServerProxy peer(sessionHandler->out);
-    const qmf::org::apache::qpid::broker::ArgsLinkBridge& args(bridge.getArgs());
     FieldTable arguments;
     arguments.setString(ReplicatingSubscription::QPID_REPLICATING_SUBSCRIPTION, getType());
     arguments.setInt(QPID_SYNC_FREQUENCY, 1); // TODO aconway 2012-05-22: optimize?
@@ -263,7 +262,7 @@ void QueueReplicator::initializeBridge(Bridge& bridge, SessionHandler& sessionHa
     }
     try {
         peer.getMessage().subscribe(
-            args.i_src, args.i_dest, 0/*accept-explicit*/, 1/*not-acquired*/,
+            bridge.getSrc(), bridge.getDest(), 0/*accept-explicit*/, 1/*not-acquired*/,
             false/*exclusive*/, "", 0, arguments);
         peer.getMessage().setFlowMode(getName(), 1); // Window
         peer.getMessage().flow(getName(), 0, settings.getFlowMessages());

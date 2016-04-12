@@ -328,6 +328,9 @@ class RouteManager:
             if b[0] != self.local.name():
                 self.qmf.delBroker(b[1])
 
+    def _bridge_name(self, link, src, dest, key):
+        return "_%s!%s!%s!%s" % (link.name, src, dest, key)
+
     def addRoute(self, remoteBroker, exchange, routingKey, tag, excludes, interbroker_mechanism="", dynamic=False):
         if dynamic and config._srclocal:
             raise Exception("--src-local is not permitted on dynamic routes")
@@ -346,9 +349,22 @@ class RouteManager:
 
         if config._verbose:
             print "Creating inter-broker binding..."
-        res = link.bridge(config._durable, exchange, exchange, routingKey, tag,
-                          excludes, False, config._srclocal, dynamic,
-                          config._ack, credit=config._credit)
+        broker = self.agent.getObjects(_class="broker")[0]
+        res = broker.create("bridge", self._bridge_name(link, exchange, exchange, routingKey),
+                            {
+                                "link":link.name,
+                                "durable":config._durable,
+                                "src":exchange,
+                                "dest":exchange,
+                                "key":routingKey,
+                                "tag":tag,
+                                "excludes":excludes,
+                                "srcIsQueue":False,
+                                "srcIsLocal":config._srclocal,
+                                "dynamic":dynamic,
+                                "sync":config._ack,
+                                "credit":config._credit
+                            }, False)
         if res.status != 0:
             raise Exception(res.text)
         if config._verbose:
@@ -369,8 +385,18 @@ class RouteManager:
 
         if config._verbose:
             print "Creating inter-broker binding..."
-        res = link.bridge(config._durable, queue, exchange, "", "", "", True,
-                          config._srclocal, False, config._ack, credit=config._credit)
+        broker = self.agent.getObjects(_class="broker")[0]
+        res = broker.create("bridge",  self._bridge_name(link, queue, exchange, ""),
+                            {
+                                "link":link.name,
+                                "durable":config._durable,
+                                "src":queue,
+                                "dest":exchange,
+                                "srcIsQueue":True,
+                                "srcIsLocal":config._srclocal,
+                                "sync":config._ack,
+                                "credit":config._credit
+                            }, False)
         if res.status != 0:
             raise Exception(res.text)
         if config._verbose:

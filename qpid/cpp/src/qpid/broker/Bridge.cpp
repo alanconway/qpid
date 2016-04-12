@@ -64,10 +64,37 @@ void Bridge::PushHandler::handle(framing::AMQFrame& frame)
     conn->received(frame);
 }
 
-Bridge::Bridge(const std::string& _name, Link* _link, framing::ChannelId _id,
-               CancellationListener l, const _qmf::ArgsLinkBridge& _args,
-               InitializeCallback init, const std::string& _queueName, const string& ae) :
-    link(_link), channel(_id), args(_args),
+Bridge::Bridge(const std::string& _name,
+               Link* _link,
+               framing::ChannelId _id,
+               CancellationListener l,
+               bool _durable,
+               const std::string& _src,
+               const std::string& _dest,
+               const std::string& _key,
+               const std::string& _tag,
+               const std::string& _excludes,
+               bool _srcIsQueue,
+               bool _srcIsLocal,
+               bool _dynamic,
+               uint16_t _sync,
+               uint32_t _credit,
+               InitializeCallback init,
+               const std::string& _queueName,
+               const std::string& ae) :
+    link(_link),
+    channel(_id),
+    durable(_durable),
+    src(_src),
+    dest(_dest),
+    key(_key),
+    tag(_tag),
+    excludes(_excludes),
+    srcIsQueue(_srcIsQueue),
+    srcIsLocal(_srcIsLocal),
+    dynamic(_dynamic),
+    sync(_sync),
+    credit(_credit),
     listener(l), name(_name),
     queueName(_queueName.empty() ? "qpid.bridge_queue_" + name + "_" + link->getBroker()->getFederationTag()
               : _queueName),
@@ -78,21 +105,21 @@ Bridge::Bridge(const std::string& _name, Link* _link, framing::ChannelId _id,
 {
     // If both acks (i_sync) and limited credit is configured, then we'd
     // better be able to sync before running out of credit or we
-    // may stall (note: i_credit==0 means "unlimited")
-    if (args.i_credit && args.i_sync && args.i_sync > args.i_credit)
+    // may stall (note: credit==0 means "unlimited")
+    if (credit && sync && sync > credit)
         throw Exception("The credit value must be greater than configured sync (ack) interval.");
 
     ManagementAgent* agent = link->getBroker()->getManagementAgent();
     if (agent != 0) {
         mgmtObject = _qmf::Bridge::shared_ptr(new _qmf::Bridge
-            (agent, this, link, name, args.i_durable, args.i_src, args.i_dest,
-             args.i_key, args.i_srcIsQueue, args.i_srcIsLocal,
-             args.i_tag, args.i_excludes, args.i_dynamic, args.i_sync,
-             args.i_credit));
+            (agent, this, link, name, durable, src, dest,
+             key, srcIsQueue, srcIsLocal,
+             tag, excludes, dynamic, sync,
+             credit));
         mgmtObject->set_channelId(channel);
         agent->addObject(mgmtObject);
     }
-    QPID_LOG(debug, "Bridge " << name << " created from " << args.i_src << " to " << args.i_dest);
+    QPID_LOG(debug, "Bridge " << name << " created from " << src << " to " << dest);
 }
 
 Bridge::~Bridge()
@@ -107,8 +134,8 @@ void Bridge::create(amqp_0_10::Connection& c)
 
     SessionHandler& sessionHandler = c.getChannel(channel);
     sessionHandler.setErrorListener(shared_from_this());
-    if (args.i_srcIsLocal) {
-        if (args.i_dynamic)
+    if (srcIsLocal) {
+        if (dynamic)
             throw Exception("Dynamic routing not supported for push routes");
         // Point the bridging commands at the local connection handler
         pushHandler.reset(new PushHandler(&c));
@@ -125,24 +152,24 @@ void Bridge::create(amqp_0_10::Connection& c)
         peer.reset(new framing::AMQP_ServerProxy(sessionHandler.out));
     }
 
-    if (args.i_srcIsLocal) sessionHandler.getSession()->disableReceiverTracking();
+    if (srcIsLocal) sessionHandler.getSession()->disableReceiverTracking();
 
     if (initialize) {
         initialize(*this, sessionHandler);  // custom subscription initializer supplied
     } else {
         // will a temp queue be created for this bridge?
-        const bool temp_queue = !args.i_srcIsQueue && !useExistingQueue;
+        const bool temp_queue = !srcIsQueue && !useExistingQueue;
         // UI convention: user specifies 0 for infinite credit
-        const uint32_t credit = (args.i_credit == 0) ? LinkRegistry::INFINITE_CREDIT : args.i_credit;
+        if (credit == 0) credit = LinkRegistry::INFINITE_CREDIT;
         // use explicit acks only for non-temp queues, useless for temp queues since they are
         // destroyed when the session drops (can't resend unacked msgs)
-        const uint8_t ack_mode = (args.i_sync && !temp_queue) ? EXPLICIT_ACK : IMPLIED_ACK;
+        const uint8_t ack_mode = (sync && !temp_queue) ? EXPLICIT_ACK : IMPLIED_ACK;
 
         // configure command.sync frequency
         FieldTable options;
         uint32_t freq = 0;
         if (ack_mode == EXPLICIT_ACK) {  // user explicitly configured syncs
-            freq = uint32_t(args.i_sync);
+            freq = uint32_t(sync);
         } else if (credit && credit != LinkRegistry::INFINITE_CREDIT) {
             // force occasional sync to keep from stalling due to lack of credit
             freq = (credit + 1)/2;
@@ -151,25 +178,25 @@ void Bridge::create(amqp_0_10::Connection& c)
             options.setInt("qpid.sync_frequency", freq);
 
         // create a subscription on the remote
-        if (args.i_srcIsQueue) {
-            peer->getMessage().subscribe(args.i_src, args.i_dest, ack_mode, 0, false, "", 0, options);
-            peer->getMessage().flow(args.i_dest, 0, credit);  // message credit
-            peer->getMessage().flow(args.i_dest, 1, LinkRegistry::INFINITE_CREDIT);     // byte credit
-            QPID_LOG(debug, "Activated bridge " << name << " for route from queue " << args.i_src << " to " << args.i_dest);
+        if (srcIsQueue) {
+            peer->getMessage().subscribe(src, dest, ack_mode, 0, false, "", 0, options);
+            peer->getMessage().flow(dest, 0, credit);  // message credit
+            peer->getMessage().flow(dest, 1, LinkRegistry::INFINITE_CREDIT);     // byte credit
+            QPID_LOG(debug, "Activated bridge " << name << " for route from queue " << src << " to " << dest);
         } else {
             if (!useExistingQueue) {
                 FieldTable queueSettings;
 
-                if (args.i_tag.size()) {
-                    queueSettings.setString("qpid.trace.id", args.i_tag);
+                if (tag.size()) {
+                    queueSettings.setString("qpid.trace.id", tag);
                 } else {
                     const string& peerTag = c.getFederationPeerTag();
                     if (peerTag.size())
                         queueSettings.setString("qpid.trace.id", peerTag);
                 }
 
-                if (args.i_excludes.size()) {
-                    queueSettings.setString("qpid.trace.exclude", args.i_excludes);
+                if (excludes.size()) {
+                    queueSettings.setString("qpid.trace.exclude", excludes);
                 } else {
                     const string& localTag = link->getBroker()->getFederationTag();
                     if (localTag.size())
@@ -181,30 +208,30 @@ void Bridge::create(amqp_0_10::Connection& c)
                 bool autoDelete = exclusive && !durable;//auto delete transient queues?
                 peer->getQueue().declare(queueName, altEx, false, durable, exclusive, autoDelete, queueSettings);
             }
-            if (!args.i_dynamic)
-                peer->getExchange().bind(queueName, args.i_src, args.i_key, FieldTable());
-            peer->getMessage().subscribe(queueName, args.i_dest, ack_mode, 0, false, "", 0, options);
-            peer->getMessage().flow(args.i_dest, 0, credit);
-            peer->getMessage().flow(args.i_dest, 1, LinkRegistry::INFINITE_CREDIT);
-            if (args.i_dynamic) {
-                Exchange::shared_ptr exchange = link->getBroker()->getExchanges().get(args.i_src);
+            if (!dynamic)
+                peer->getExchange().bind(queueName, src, key, FieldTable());
+            peer->getMessage().subscribe(queueName, dest, ack_mode, 0, false, "", 0, options);
+            peer->getMessage().flow(dest, 0, credit);
+            peer->getMessage().flow(dest, 1, LinkRegistry::INFINITE_CREDIT);
+            if (dynamic) {
+                Exchange::shared_ptr exchange = link->getBroker()->getExchanges().get(src);
                 if (exchange.get() == 0)
                     throw Exception("Exchange not found for dynamic route");
                 exchange->registerDynamicBridge(this);
-                QPID_LOG(debug, "Activated bridge " << name << " for dynamic route for exchange " << args.i_src);
+                QPID_LOG(debug, "Activated bridge " << name << " for dynamic route for exchange " << src);
             } else {
-                QPID_LOG(debug, "Activated bridge " << name << " for static route from exchange " << args.i_src << " to " << args.i_dest);
+                QPID_LOG(debug, "Activated bridge " << name << " for static route from exchange " << src << " to " << dest);
             }
         }
     }
-    if (args.i_srcIsLocal) sessionHandler.getSession()->enableReceiverTracking();
+    if (srcIsLocal) sessionHandler.getSession()->enableReceiverTracking();
 }
 
 void Bridge::cancel(amqp_0_10::Connection& c)
 {
     // If &c != conn then we have failed over so the old connection is closed.
     if (&c == conn && resetProxy()) {
-        peer->getMessage().cancel(args.i_dest);
+        peer->getMessage().cancel(dest);
         peer->getSession().detach(sessionName);
     }
     QPID_LOG(debug, "Cancelled bridge " << name);
@@ -213,8 +240,8 @@ void Bridge::cancel(amqp_0_10::Connection& c)
 /** Notify the bridge that the connection has closed */
 void Bridge::closed()
 {
-    if (args.i_dynamic) {
-        Exchange::shared_ptr exchange = link->getBroker()->getExchanges().find(args.i_src);
+    if (dynamic) {
+        Exchange::shared_ptr exchange = link->getBroker()->getExchanges().find(src);
         if (exchange.get()) exchange->removeDynamicBridge(this);
     }
     QPID_LOG(debug, "Closed bridge " << name);
@@ -307,17 +334,17 @@ void Bridge::encode(Buffer& buffer) const
     buffer.putShortString(ENCODED_IDENTIFIER);
     buffer.putShortString(name);
     buffer.putShortString(link->getName());
-    buffer.putOctet(args.i_durable ? 1 : 0);
-    buffer.putShortString(args.i_src);
-    buffer.putShortString(args.i_dest);
-    buffer.putShortString(args.i_key);
-    buffer.putOctet(args.i_srcIsQueue ? 1 : 0);
-    buffer.putOctet(args.i_srcIsLocal ? 1 : 0);
-    buffer.putShortString(args.i_tag);
-    buffer.putShortString(args.i_excludes);
-    buffer.putOctet(args.i_dynamic ? 1 : 0);
-    buffer.putShort(args.i_sync);
-    buffer.putLong(args.i_credit);
+    buffer.putOctet(durable ? 1 : 0);
+    buffer.putShortString(src);
+    buffer.putShortString(dest);
+    buffer.putShortString(key);
+    buffer.putOctet(srcIsQueue ? 1 : 0);
+    buffer.putOctet(srcIsLocal ? 1 : 0);
+    buffer.putShortString(tag);
+    buffer.putShortString(excludes);
+    buffer.putOctet(dynamic ? 1 : 0);
+    buffer.putShort(sync);
+    buffer.putLong(credit);
 }
 
 uint32_t Bridge::encodedSize() const
@@ -326,13 +353,13 @@ uint32_t Bridge::encodedSize() const
         + name.size() + 1
         + link->getName().size() + 1
         + 1                // durable
-        + args.i_src.size()  + 1
-        + args.i_dest.size() + 1
-        + args.i_key.size()  + 1
+        + src.size()  + 1
+        + dest.size() + 1
+        + key.size()  + 1
         + 1                // srcIsQueue
         + 1                // srcIsLocal
-        + args.i_tag.size() + 1
-        + args.i_excludes.size() + 1
+        + tag.size() + 1
+        + excludes.size() + 1
         + 1               // dynamic
         + 2               // sync
         + 4;              // credit
@@ -382,7 +409,7 @@ void Bridge::propagateBinding(const string& key, const string& tagList,
              bindArgs.setString(qpidFedOrigin, origin);
 
          conn->requestIOProcessing(boost::bind(&Bridge::ioThreadPropagateBinding, this,
-                                               queueName, args.i_src, key, bindArgs));
+                                               queueName, src, key, bindArgs));
     }
 }
 
@@ -394,7 +421,7 @@ void Bridge::sendReorigin()
     bindArgs.setString(qpidFedTags, link->getBroker()->getFederationTag());
 
     conn->requestIOProcessing(boost::bind(&Bridge::ioThreadPropagateBinding, this,
-                                          queueName, args.i_src, args.i_key, bindArgs));
+                                          queueName, src, key, bindArgs));
 }
 bool Bridge::resetProxy()
 {

@@ -24,6 +24,7 @@
 #include "qpid/broker/Broker.h"
 #include "qpid/broker/amqp_0_10/Connection.h"
 #include "qpid/sys/Timer.h"
+#include "qmf/org/apache/qpid/broker/ArgsLinkBridge.h"
 #include "qmf/org/apache/qpid/broker/EventBrokerLinkUp.h"
 #include "qmf/org/apache/qpid/broker/EventBrokerLinkDown.h"
 #include "boost/bind.hpp"
@@ -733,7 +734,7 @@ Manageable::status_t Link::ManagementMethod (uint32_t op, Args& args, string& te
                               *this, iargs.i_durable,
                               iargs.i_src, iargs.i_dest, iargs.i_key, iargs.i_srcIsQueue,
                               iargs.i_srcIsLocal, iargs.i_tag, iargs.i_excludes,
-                              iargs.i_dynamic, iargs.i_sync, iargs.i_credit);
+                              iargs.i_dynamic, iargs.i_sync, 0); // FIXME aconway 2016-04-12: default
             if (!rc.first) {
                 text = "invalid parameters";
                 return Manageable::STATUS_PARAMETER_INVALID;

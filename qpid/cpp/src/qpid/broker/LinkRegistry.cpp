@@ -213,25 +213,24 @@ pair<Bridge::shared_ptr, bool> LinkRegistry::declare(const std::string& name,
     BridgeMap::iterator b = bridges.find(name);
     if (b == bridges.end())
     {
-        _qmf::ArgsLinkBridge args;
         Bridge::shared_ptr bridge;
-
-        args.i_durable    = durable;
-        args.i_src        = src;
-        args.i_dest       = dest;
-        args.i_key        = key;
-        args.i_srcIsQueue = isQueue;
-        args.i_srcIsLocal = isLocal;
-        args.i_tag        = tag;
-        args.i_excludes   = excludes;
-        args.i_dynamic    = dynamic;
-        args.i_sync       = sync;
-        args.i_credit     = credit;
-
         bridge = Bridge::shared_ptr
           (new Bridge (name, &link, link.nextChannel(),
                        boost::bind(&LinkRegistry::destroyBridge, this, _1),
-                       args, init, queueName, altExchange));
+                       durable,
+                       src,
+                       dest,
+                       key,
+                       tag,
+                       excludes,
+                       isQueue,
+                       isLocal,
+                       dynamic,
+                       sync,
+                       credit,
+                       init,
+                       queueName,
+                       altExchange));
         bridges[name] = bridge;
         link.add(bridge);
         if (durable && store && !broker->inRecovery())

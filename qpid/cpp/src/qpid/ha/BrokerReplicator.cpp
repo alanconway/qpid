@@ -388,7 +388,6 @@ void BrokerReplicator::connected(Bridge& bridge, SessionHandler& sessionHandler)
     queues.eachQueue(boost::bind(&BrokerReplicator::existingQueue, this, _1));
 
     framing::AMQP_ServerProxy peer(sessionHandler.out);
-    const qmf::org::apache::qpid::broker::ArgsLinkBridge& args(bridge.getArgs());
 
     //declare and bind an event queue
     FieldTable declareArgs;
@@ -400,11 +399,11 @@ void BrokerReplicator::connected(Bridge& bridge, SessionHandler& sessionHandler)
     FieldTable arguments;
     arguments.setInt(QueueReplicator::QPID_SYNC_FREQUENCY, 1); // TODO aconway 2012-05-22: optimize?
     peer.getMessage().subscribe(
-        queueName, args.i_dest, 1/*accept-none*/, 0/*pre-acquired*/,
+        queueName, bridge.getDest(), 1/*accept-none*/, 0/*pre-acquired*/,
         false/*exclusive*/, "", 0, arguments);
-    peer.getMessage().setFlowMode(args.i_dest, 1); // Window
-    peer.getMessage().flow(args.i_dest, 0, haBroker.getSettings().getFlowMessages());
-    peer.getMessage().flow(args.i_dest, 1, haBroker.getSettings().getFlowBytes());
+    peer.getMessage().setFlowMode(bridge.getDest(), 1); // Window
+    peer.getMessage().flow(bridge.getDest(), 0, haBroker.getSettings().getFlowMessages());
+    peer.getMessage().flow(bridge.getDest(), 1, haBroker.getSettings().getFlowBytes());
 
     // Issue a query request for queues, exchanges, bindings and the habroker
     // using event queue as the reply-to address
